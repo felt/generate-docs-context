@@ -1,0 +1,50 @@
+name: Generate docs context
+description: Build corpus.md from a docs repository and upload it to S3.
+
+inputs:
+  base-url:
+    description: Base URL the docs are published under, e.g. https://developer.felt.com
+    required: true
+  s3-key:
+    description: Destination object key, e.g. public/developer-docs/corpus.md
+    required: true
+  bucket:
+    description: S3 bucket to upload the corpus to.
+    required: true
+  role-arn:
+    description: ARN of the IAM role to assume via GitHub OIDC.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install uv
+      uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+      with:
+        working-directory: ${{ github.action_path }}/scripts
+
+    - name: Install Python dependencies
+      shell: bash
+      working-directory: ${{ github.action_path }}/scripts
+      run: uv sync --locked
+
+    - name: Build corpus
+      id: build
+      shell: bash
+      working-directory: ${{ github.action_path }}/scripts
+      run: |
+        uv run build-corpus \
+          --docs-root "$GITHUB_WORKSPACE" \
+          --base-url "${{ inputs.base-url }}" \
+          -o "${{ runner.temp }}/corpus.md"
+        echo "corpus-path=${{ runner.temp }}/corpus.md" >> "$GITHUB_OUTPUT"
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@e7f100cf4c008499ea8adda475de1042d6975c7b # v6.2.0
+      with:
+        aws-region: us-west-1
+        role-to-assume: ${{ inputs.role-arn }}
+
+    - name: Upload corpus to S3
+      shell: bash
+      run: aws s3 cp "${{ steps.build.outputs.corpus-path }}" "s3://${{ inputs.bucket }}/${{ inputs.s3-key }}"
