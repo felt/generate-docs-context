@@ -40,6 +40,7 @@ Input | Required | Description
 `s3-key` | yes | Destination object key (path within the bucket).
 `bucket` | yes | Destination S3 bucket.
 `role-arn` | yes | IAM role assumed via GitHub OIDC.
+`docs-path` | no | Subdirectory to walk, relative to the repo root.
 
 ## Prerequisites
 

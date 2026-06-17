@@ -14,6 +14,10 @@ inputs:
   role-arn:
     description: ARN of the IAM role to assume via GitHub OIDC.
     required: true
+  docs-path:
+    description: Path within the repository to walk for docs, relative to the repo root. Defaults to the repo root, e.g. set to "docs" when docs live in a subdirectory.
+    required: false
+    default: "."
 
 runs:
   using: composite
@@ -34,7 +38,7 @@ runs:
       working-directory: ${{ github.action_path }}/scripts
       run: |
         uv run build-corpus \
-          --docs-root "$GITHUB_WORKSPACE" \
+          --docs-root "$GITHUB_WORKSPACE/${{ inputs.docs-path }}" \
           --base-url "${{ inputs.base-url }}" \
           -o "${{ runner.temp }}/corpus.md"
         echo "corpus-path=${{ runner.temp }}/corpus.md" >> "$GITHUB_OUTPUT"
