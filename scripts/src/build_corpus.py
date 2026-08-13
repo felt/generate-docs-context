@@ -25,7 +25,7 @@ class CorpusBuilder:
     """
 
     skip_files = {"SUMMARY.md"}
-    skip_dirs = {".gitbook", ".git", ".github", "scripts"}
+    skip_dirs = {".claude", ".gitbook", ".git", ".github", "scripts"}
 
     def __init__(
         self,
