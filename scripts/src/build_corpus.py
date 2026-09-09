@@ -107,10 +107,12 @@ class CorpusBuilder:
         docs_root: Path,
         output: Path,
         base_url: str,
+        exclude: tuple[str, ...] = (),
     ):
         self.docs_root = docs_root
         self.output = output
         self.base_url = base_url.rstrip("/")
+        self.exclude = exclude
 
     def published(self) -> list[Path]:
         """Pages listed in SUMMARY.md, GitBook's table of contents, in nav order.
@@ -118,6 +120,10 @@ class CorpusBuilder:
         SUMMARY.md is the only statement of what is actually published. Walking the repo instead
         sweeps in files that have no page behind them — a style guide, a `.claude` skill — and mints
         plausible URLs for them that 404.
+
+        `exclude` then drops pages that are published but not worth answering from. Legal text is
+        the case it exists for: a model paraphrasing a contract is worse than one saying the docs
+        do not cover it, and the page is still a click away on the site.
         """
         summary = self.docs_root / "SUMMARY.md"
         if not summary.is_file():
@@ -127,6 +133,8 @@ class CorpusBuilder:
 
         pages = []
         for rel in SUMMARY_ENTRY.findall(summary.read_text(encoding="utf-8")):
+            if any(rel.startswith(prefix) for prefix in self.exclude):
+                continue
             path = (self.docs_root / rel).resolve()
             if not path.is_file():
                 print(
@@ -234,6 +242,11 @@ def main():
         help="base URL the docs are published under, e.g. https://developer.felt.com",
     )
     parser.add_argument(
+        "--exclude",
+        default="",
+        help="comma- or newline-separated path prefixes to leave out, e.g. terms-and-policy/",
+    )
+    parser.add_argument(
         "-o",
         "--output",
         type=Path,
@@ -245,8 +258,12 @@ def main():
     if not docs_root.is_dir():
         sys.exit(f"docs root not found: {docs_root}")
 
+    exclude = tuple(
+        p.strip() for p in args.exclude.replace("\n", ",").split(",") if p.strip()
+    )
+
     output = args.output or docs_root / "corpus.md"
-    CorpusBuilder(docs_root, output, args.base_url).build()
+    CorpusBuilder(docs_root, output, args.base_url, exclude).build()
 
 
 if __name__ == "__main__":
