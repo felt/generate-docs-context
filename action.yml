@@ -14,6 +14,10 @@ inputs:
   role-arn:
     description: ARN of the IAM role to assume via GitHub OIDC.
     required: true
+  exclude:
+    description: Comma- or newline-separated path prefixes, relative to docs-path, to leave out of the corpus even though SUMMARY.md publishes them. Use for pages a model should not answer from, such as legal text.
+    required: false
+    default: ""
   docs-path:
     description: Path within the repository to walk for docs, relative to the repo root. Defaults to the repo root, e.g. set to "docs" when docs live in a subdirectory.
     required: false
@@ -40,6 +44,7 @@ runs:
         uv run build-corpus \
           --docs-root "$GITHUB_WORKSPACE/${{ inputs.docs-path }}" \
           --base-url "${{ inputs.base-url }}" \
+          --exclude "${{ inputs.exclude }}" \
           -o "${{ runner.temp }}/corpus.md"
         echo "corpus-path=${{ runner.temp }}/corpus.md" >> "$GITHUB_OUTPUT"
 

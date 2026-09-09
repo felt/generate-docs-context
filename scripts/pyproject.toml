@@ -21,3 +21,4 @@ dev = ["ruff>=0.12.8"]
 
 [project.scripts]
 build-corpus = "src.build_corpus:main"
+check-anchors = "src.check_anchors:main"
