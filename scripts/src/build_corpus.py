@@ -220,7 +220,8 @@ class CorpusBuilder:
 
     def build(self) -> str:
         parts = self.pages()
-        output = "\n\n---\n\n".join(parts)
+        # Each page is stripped, so without this the file ends mid-line and reads as truncated.
+        output = "\n\n---\n\n".join(parts) + "\n"
         self.output.write_text(output, encoding="utf-8")
         print(f"Wrote {self.output}: {len(parts)} pages, {len(output):,} chars")
         return output
