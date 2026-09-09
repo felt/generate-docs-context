@@ -20,6 +20,13 @@ Which pages are published comes from `SUMMARY.md`, GitBook's table of contents â
 not from walking the tree, which sweeps in files that have no page behind them
 and mints URLs for them that 404.
 
+Pages GitBook hides are left out too. A hidden page still renders at its URL but
+is `noindex` and absent from the nav, search and sitemap, so it is not somewhere
+to send a reader. Hiding cascades to everything nested under it in `SUMMARY.md`.
+
+Use `exclude` for pages that are published and visible but still not worth
+answering from â€” legal text is the case it exists for.
+
 ## Usage
 
 In a docs repository, add a workflow such as `.github/workflows/build-corpus.yml`:
@@ -56,6 +63,7 @@ Input | Required | Description
 `s3-key` | yes | Destination object key (path within the bucket).
 `bucket` | yes | Destination S3 bucket.
 `role-arn` | yes | IAM role assumed via GitHub OIDC.
+`exclude` | no | Comma- or newline-separated path prefixes to leave out, e.g. `terms-and-policy/`.
 `docs-path` | no | Subdirectory to walk, relative to the repo root.
 
 ## Prerequisites
