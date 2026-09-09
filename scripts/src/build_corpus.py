@@ -41,7 +41,13 @@ LINE_BREAK = re.compile(r"<br\s*/?>")
 CODE_TAG = re.compile(r"</?code>")
 ANY_TAG = re.compile(r"<[^>]+>")
 
-SUMMARY_ENTRY = re.compile(r"^\s*\*\s*\[[^\]]+\]\(([^)#]+\.md)\)", re.MULTILINE)
+SUMMARY_ENTRY = re.compile(r"^([ \t]*)\*\s*\[[^\]]+\]\(([^)#]+\.md)\)", re.MULTILINE)
+
+# GitBook marks a page it publishes but keeps out of the nav, search and search engines. The flag
+# lives in frontmatter, which `clean/1` strips, so it is read before anything else happens.
+HIDDEN_FLAG = re.compile(
+    r"^\s*(?:hidden|noIndex):\s*true\s*$", re.MULTILINE | re.IGNORECASE
+)
 HEADING = re.compile(r"^(#{1,2}) +(\S.*?)[ \t]*$", re.MULTILINE)
 PLACEHOLDER = re.compile(r"\x00(\d+)\x00")
 
@@ -121,9 +127,14 @@ class CorpusBuilder:
         sweeps in files that have no page behind them — a style guide, a `.claude` skill — and mints
         plausible URLs for them that 404.
 
-        `exclude` then drops pages that are published but not worth answering from. Legal text is
-        the case it exists for: a model paraphrasing a contract is worse than one saying the docs
-        do not cover it, and the page is still a click away on the site.
+        Pages GitBook hides are dropped as well. A hidden page still renders at its URL, but it is
+        absent from the nav, from search and from the sitemap, and it is served `noindex` — so it
+        is not somewhere to send a reader. Hiding cascades to everything nested under it in the
+        table of contents, which is the only place that nesting is recorded.
+
+        `exclude` then drops pages that are published and visible but still not worth answering
+        from. Legal text is the case it exists for: a model paraphrasing a contract is worse than
+        one saying the docs do not cover it, and the page is still a click away on the site.
         """
         summary = self.docs_root / "SUMMARY.md"
         if not summary.is_file():
@@ -132,9 +143,15 @@ class CorpusBuilder:
             )
 
         pages = []
-        for rel in SUMMARY_ENTRY.findall(summary.read_text(encoding="utf-8")):
+        hidden_depth = None
+        for indent, rel in SUMMARY_ENTRY.findall(summary.read_text(encoding="utf-8")):
+            depth = len(indent.expandtabs(4))
+            if hidden_depth is not None and depth <= hidden_depth:
+                hidden_depth = None
+
             if any(rel.startswith(prefix) for prefix in self.exclude):
                 continue
+
             path = (self.docs_root / rel).resolve()
             if not path.is_file():
                 print(
@@ -142,9 +159,19 @@ class CorpusBuilder:
                     file=sys.stderr,
                 )
                 continue
+
+            if hidden_depth is None and self.hidden(path):
+                hidden_depth = depth
+            if hidden_depth is not None:
+                continue
+
             if path not in pages:
                 pages.append(path)
         return pages
+
+    def hidden(self, path: Path) -> bool:
+        frontmatter = FRONTMATTER.match(path.read_text(encoding="utf-8"))
+        return bool(frontmatter and HIDDEN_FLAG.search(frontmatter.group(0)))
 
     def file_to_url(self, path: Path) -> str:
         rel = path.relative_to(self.docs_root).as_posix().removesuffix(".md")
