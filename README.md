@@ -1,8 +1,24 @@
 # generate-docs-context
 
-A composite GitHub Action that walks a documentation repository, strips GitBook
-markup, concatenates every page into a single `corpus.md` (with `# Source:` URL
-headers per page), and uploads it to S3.
+A composite GitHub Action that collects a documentation repository's published
+pages, strips GitBook markup, concatenates them into a single `corpus.md`, and
+uploads it to S3.
+
+The corpus is written for a language model to read and cite, so every H1 and H2
+carries the URL it is published at:
+
+```markdown
+# Billing — https://help.felt.com/administration/billing
+
+## Billing plans — https://help.felt.com/administration/billing#billing-plans
+```
+
+A model answering from the corpus can then quote a link to the exact section it
+used, without being told how the docs site builds its URLs.
+
+Which pages are published comes from `SUMMARY.md`, GitBook's table of contents —
+not from walking the tree, which sweeps in files that have no page behind them
+and mints URLs for them that 404.
 
 ## Usage
 
@@ -52,4 +68,11 @@ Input | Required | Description
 ```sh
 cd scripts
 uv run build-corpus --docs-root /path/to/docs --base-url https://developer.felt.com -o /tmp/corpus.md
+uv run check-anchors /tmp/corpus.md
 ```
+
+`check-anchors` fetches every page the corpus cites and verifies its heading
+anchors exist. GitBook does not document how it slugifies a heading, so
+`anchor/1` reproduces it by observation — periods survive, `&` spells out,
+apostrophes vanish, a renamed heading keeps its pinned anchor. Run this after
+touching that function, and when a build starts producing links that miss.
